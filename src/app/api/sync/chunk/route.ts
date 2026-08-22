@@ -25,19 +25,21 @@ export async function POST(req: Request) {
       cutoffTimestamp,
     });
 
-    const parsedSignals = extractSignalsAndClaims(channelId, batch.messages);
+    const { signals, ignoredMessages } = extractSignalsAndClaims(channelId, batch.messages);
 
     // Save/update signals in database
-    if (parsedSignals.length > 0) {
-      await upsertSignalsToDb(parsedSignals);
+    if (signals.length > 0) {
+      await upsertSignalsToDb(signals);
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        signals: parsedSignals,
+        signals,
+        ignoredMessages,
         messagesCount: batch.messages.length,
-        signalsCount: parsedSignals.length,
+        signalsCount: signals.length,
+        ignoredCount: ignoredMessages.length,
         lastOffsetId: batch.lastOffsetId,
         hasMore: batch.hasMore,
       },

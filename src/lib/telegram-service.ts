@@ -3,24 +3,110 @@ import { StringSession } from "telegram/sessions/index.js";
 import { Instrument } from "dukascopy-node";
 import { prisma } from "./prisma";
 
-export const INSTRUMENT_MAP: { [key: string]: Instrument } = {
-  "EURJPY": Instrument.eurjpy,
-  "GBPJPY": Instrument.gbpjpy,
-  "XTIUSD": Instrument.lightcmdusd,
-  "XAGUSD": Instrument.xagusd,
-  "XAGEUR": Instrument.xageur,
-  "GOLD": Instrument.xauusd,
-  "XAUUSD": Instrument.xauusd,
-  "EURUSD": Instrument.eurusd,
-  "GBPUSD": Instrument.gbpusd,
-  "USDJPY": Instrument.usdjpy,
-  "USDCAD": Instrument.usdcad,
-  "AUDUSD": Instrument.audusd,
-  "NZDUSD": Instrument.nzdusd,
-  "USDCHF": Instrument.usdchf,
-  "BTCUSD": Instrument.btcusd,
-  "ETHUSD": Instrument.ethusd,
+// Comprehensive alias mapping for Commodities, Indices, Crypto, and non-standard symbols
+export const ALIAS_MAP: { [key: string]: string } = {
+  // Commodities
+  "GOLD": "xauusd",
+  "XAU": "xauusd",
+  "XAUUSD": "xauusd",
+  "XAUEUR": "xaueur",
+  "SILVER": "xagusd",
+  "XAG": "xagusd",
+  "XAGUSD": "xagusd",
+  "XAGEUR": "xageur",
+  "OIL": "lightcmdusd",
+  "USOIL": "lightcmdusd",
+  "WTI": "lightcmdusd",
+  "CRUDE": "lightcmdusd",
+  "XTIUSD": "lightcmdusd",
+  "BRENT": "brentcmdusd",
+  "UKOIL": "brentcmdusd",
+  "XBRUSD": "brentcmdusd",
+  "NATGAS": "gascmdusd",
+  "GAS": "gascmdusd",
+
+  // Indices
+  "US30": "usa30idxusd",
+  "DJ30": "usa30idxusd",
+  "DJI": "usa30idxusd",
+  "DOW": "usa30idxusd",
+  "DOWJONES": "usa30idxusd",
+  "NAS100": "usatechidxusd",
+  "US100": "usatechidxusd",
+  "USTEC": "usatechidxusd",
+  "NQ": "usatechidxusd",
+  "NASDAQ": "usatechidxusd",
+  "NDX": "usatechidxusd",
+  "SPX500": "usa500idxusd",
+  "US500": "usa500idxusd",
+  "SP500": "usa500idxusd",
+  "SPX": "usa500idxusd",
+  "GER30": "deuidxeur",
+  "GER40": "deuidxeur",
+  "DAX": "deuidxeur",
+  "DAX40": "deuidxeur",
+  "UK100": "gbridxgbp",
+  "FTSE": "gbridxgbp",
+  "FTSE100": "gbridxgbp",
+  "JP225": "jpnidxjpy",
+  "NIKKEI": "jpnidxjpy",
+  "HK50": "hkgidxhkd",
+  "HANGSENG": "hkgidxhkd",
+  "EUSTX50": "eusidxeur",
+  "STOXX50": "eusidxeur",
+
+  // Crypto
+  "BTC": "btcusd",
+  "BITCOIN": "btcusd",
+  "BTCUSD": "btcusd",
+  "ETH": "ethusd",
+  "ETHEREUM": "ethusd",
+  "ETHUSD": "ethusd",
+  "SOL": "solusd",
+  "SOLANA": "solusd",
+  "SOLUSD": "solusd",
+  "XRP": "xrpusd",
+  "RIPPLE": "xrpusd",
+  "XRPUSD": "xrpusd",
+  "LTC": "ltcusd",
+  "LTCUSD": "ltcusd",
+  "BNB": "bnbusd",
+  "BNBUSD": "bnbusd",
+  "DOGE": "dogusd",
+  "DOGEUSD": "dogusd",
+  "ADA": "adausd",
+  "ADAUSD": "adausd",
 };
+
+/**
+ * Dynamically resolves an asset name to Dukascopy's Instrument enum.
+ * Supports all 1,400+ forex pairs, crosses, commodities, indices, and cryptos.
+ */
+export function resolveInstrument(asset: string): string | null {
+  if (!asset) return null;
+  const clean = asset.toUpperCase().replace(/[\/\-_ \.\u00a0]/g, "").trim();
+
+  // 1. Direct alias match
+  if (ALIAS_MAP[clean]) {
+    return ALIAS_MAP[clean];
+  }
+
+  // 2. Direct Dukascopy Instrument lookup (handles all forex pairs like EURUSD, EURAUD, GBPJPY, NZDCAD, etc.)
+  const lower = clean.toLowerCase();
+  if ((Instrument as any)[lower]) {
+    return (Instrument as any)[lower];
+  }
+
+  // 3. Fallback for 3-letter symbols (e.g. BTC -> btcusd)
+  if (clean.length === 3) {
+    const withUsd = `${lower}usd`;
+    if ((Instrument as any)[withUsd]) {
+      return (Instrument as any)[withUsd];
+    }
+  }
+
+  return null;
+}
 
 export interface ParsedSignalItem {
   id: number;
@@ -34,7 +120,8 @@ export interface ParsedSignalItem {
   tps: number[];
   providerClaimTime: string | null;
   providerClaimMsg: string | null;
-  instr: string;
+  instr: string | null;
+  claimedPips?: number | null;
   entryActual?: number | null;
   marketValueAtClaim?: string | number | null;
   actualResult?: string | null;
@@ -43,6 +130,20 @@ export interface ParsedSignalItem {
   maxPrice?: number | null;
   minPrice?: number | null;
   fraudDetected?: boolean;
+}
+
+export interface IgnoredMessageItem {
+  id: number;
+  channelId: string;
+  date: string;
+  text: string;
+  reason: string;
+  replyToMsgId?: number | null;
+}
+
+export interface ExtractionResult {
+  signals: ParsedSignalItem[];
+  ignoredMessages: IgnoredMessageItem[];
 }
 
 export function getTelegramClient() {
@@ -61,14 +162,15 @@ export function getTelegramClient() {
 }
 
 /**
- * Parses raw Telegram messages into structured signal items and claim replies.
+ * Parses raw Telegram messages into structured signal items, claim replies,
+ * and catalogs ignored/unparsed messages.
  */
 export function extractSignalsAndClaims(
   channelId: string,
   rawMessages: Array<{ id: number; date: number; message?: string; replyTo?: any }>
-): ParsedSignalItem[] {
+): ExtractionResult {
   // Map Replies for Claims
-  const claimsMap = new Map<number, { time: string; text: string }>();
+  const claimsMap = new Map<number, { time: string; text: string; pips: number | null }>();
   for (const msg of rawMessages) {
     let replyToMsgId: number | undefined = undefined;
     if (msg.replyTo) {
@@ -89,23 +191,88 @@ export function extractSignalsAndClaims(
         text.includes("sl") ||
         text.includes("closed")
       ) {
-        claimsMap.set(replyToMsgId, {
-          time: new Date(msg.date * 1000).toISOString(),
-          text: msg.message || "",
-        });
+        const pipsMatch = (msg.message || "").match(/(\d+(?:\.\d+)?)\+?\s*pips/i);
+        const claimedPips = pipsMatch ? parseFloat(pipsMatch[1]) : null;
+
+        const msgTime = new Date(msg.date * 1000);
+        const existing = claimsMap.get(replyToMsgId);
+
+        if (existing) {
+          const existingTime = new Date(existing.time);
+          if (msgTime > existingTime) {
+            claimsMap.set(replyToMsgId, {
+              time: msgTime.toISOString(),
+              text: existing.text + " | " + (msg.message || ""),
+              pips: claimedPips || existing.pips,
+            });
+          } else {
+            claimsMap.set(replyToMsgId, {
+              time: existing.time,
+              text: (msg.message || "") + " | " + existing.text,
+              pips: existing.pips || claimedPips,
+            });
+          }
+        } else {
+          claimsMap.set(replyToMsgId, {
+            time: msgTime.toISOString(),
+            text: msg.message || "",
+            pips: claimedPips,
+          });
+        }
       }
     }
   }
 
-  const results: ParsedSignalItem[] = [];
+  const signals: ParsedSignalItem[] = [];
+  const ignoredMessages: IgnoredMessageItem[] = [];
 
   for (const msg of rawMessages) {
-    const text = msg.message || "";
-    // Matches formats like: GOLD BUY AT 2030.5 or EURUSD SELL AT 1.0850
-    const headerMatch = text.match(/^([A-Za-z0-9]+)\s*(BUY|SELL)\s*AT\s*([\d\.]+)/i);
-    if (!headerMatch) continue;
+    const rawText = msg.message || "";
+    const text = rawText.replace(/\u00a0/g, " ").trim();
 
-    const asset = headerMatch[1].toUpperCase();
+    let replyToMsgId: number | null = null;
+    if (msg.replyTo) {
+      if (typeof msg.replyTo.replyToMsgId === "number") {
+        replyToMsgId = msg.replyTo.replyToMsgId;
+      } else if (typeof msg.replyTo === "number") {
+        replyToMsgId = msg.replyTo;
+      }
+    }
+
+    // If it's a known claim reply (e.g. "TP hit"), skip adding to ignored list since it's an update
+    if (replyToMsgId && (
+      text.toLowerCase().includes("tp") ||
+      text.toLowerCase().includes("profit") ||
+      text.toLowerCase().includes("sl") ||
+      text.toLowerCase().includes("hit")
+    )) {
+      continue;
+    }
+
+    // Try to match signal headers like "GOLD BUY AT 2030.5" or "EURUSD SELL AT 1.0850" or "US30 SELL AT 52960"
+    const headerMatch = text.match(/(?:^|\n)\s*(?:[^\w\n]*\s*)?([A-Za-z0-9\/\-_]+)\s*(BUY|SELL)\s*AT\s*([\d\.]+)/i);
+
+    if (!headerMatch) {
+      // Check if message looks like a trade message to classify why it was ignored
+      const hasAction = /\b(BUY|SELL|LONG|SHORT)\b/i.test(text);
+      const hasSlOrTp = /\b(SL|TP|STOP LOSS|TAKE PROFIT)\b/i.test(text);
+
+      if (hasAction || hasSlOrTp) {
+        ignoredMessages.push({
+          id: msg.id,
+          channelId,
+          date: new Date(msg.date * 1000).toISOString(),
+          text: rawText,
+          reason: hasAction
+            ? "Missing entry format (expected 'ASSET BUY/SELL AT price')"
+            : "Trade update or commentary without signal header",
+          replyToMsgId,
+        });
+      }
+      continue;
+    }
+
+    const asset = headerMatch[1].toUpperCase().replace(/[\/\-_]/g, "");
     const action = headerMatch[2].toUpperCase();
     const entry = parseFloat(headerMatch[3]);
 
@@ -119,30 +286,54 @@ export function extractSignalsAndClaims(
       tpList.push(parseFloat(match[1]));
     }
 
-    const instrKey = asset === "GOLD" ? "GOLD" : asset;
-    const instr = INSTRUMENT_MAP[instrKey];
-    if (!instr || !sl || tpList.length === 0) continue;
+    if (!sl) {
+      ignoredMessages.push({
+        id: msg.id,
+        channelId,
+        date: new Date(msg.date * 1000).toISOString(),
+        text: rawText,
+        reason: "Missing Stop Loss (SL)",
+        replyToMsgId,
+      });
+      continue;
+    }
+
+    if (tpList.length === 0) {
+      ignoredMessages.push({
+        id: msg.id,
+        channelId,
+        date: new Date(msg.date * 1000).toISOString(),
+        text: rawText,
+        reason: "Missing Take Profit (TP)",
+        replyToMsgId,
+      });
+      continue;
+    }
+
+    // Dynamically resolve instrument for Dukascopy market data
+    const instr = resolveInstrument(asset);
 
     const signalTime = new Date(msg.date * 1000);
     const claim = claimsMap.get(msg.id);
 
-    results.push({
+    signals.push({
       id: msg.id,
       channelId,
       asset,
       action,
       signalTime: signalTime.toISOString(),
-      msg: text,
+      msg: rawText,
       entryClaimed: entry,
       sl,
       tps: tpList,
       providerClaimTime: claim ? claim.time : null,
       providerClaimMsg: claim ? claim.text : null,
-      instr,
+      claimedPips: claim ? claim.pips : null,
+      instr, // Can be null if unknown/unsupported, but signal is NEVER dropped!
     });
   }
 
-  return results;
+  return { signals, ignoredMessages };
 }
 
 /**
@@ -233,7 +424,8 @@ export async function upsertSignalsToDb(signals: ParsedSignalItem[]) {
           msg: sig.msg,
           providerClaimTime: sig.providerClaimTime ? new Date(sig.providerClaimTime) : null,
           providerClaimMsg: sig.providerClaimMsg,
-          instr: String(sig.instr),
+          claimedPips: sig.claimedPips,
+          instr: sig.instr ? String(sig.instr) : null,
         },
         create: {
           channelId: sig.channelId,
@@ -247,13 +439,13 @@ export async function upsertSignalsToDb(signals: ParsedSignalItem[]) {
           msg: sig.msg,
           providerClaimTime: sig.providerClaimTime ? new Date(sig.providerClaimTime) : null,
           providerClaimMsg: sig.providerClaimMsg,
-          instr: String(sig.instr),
+          claimedPips: sig.claimedPips,
+          instr: sig.instr ? String(sig.instr) : null,
         },
       });
     }
   } catch (err) {
     console.error("Database cache upsert warning:", err);
-    // Non-fatal if DB not yet connected or migrating
   }
 }
 
@@ -327,7 +519,8 @@ export async function getCachedSignalsFromDb(
       tps: r.tps,
       providerClaimTime: r.providerClaimTime ? r.providerClaimTime.toISOString() : null,
       providerClaimMsg: r.providerClaimMsg,
-      instr: r.instr || "",
+      claimedPips: r.claimedPips,
+      instr: r.instr || null,
       entryActual: r.entryActual,
       marketValueAtClaim: r.marketValueAtClaim,
       actualResult: r.actualResult,

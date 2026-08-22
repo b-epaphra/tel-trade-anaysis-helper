@@ -7,6 +7,8 @@ import {
   Play,
   FileText,
   AlertTriangle,
+  AlertCircle,
+  HelpCircle,
   CheckCircle,
   Clock,
   ExternalLink,
@@ -28,8 +30,11 @@ import {
   Check,
   Copy,
   Info,
+  Eye,
 } from "lucide-react";
 import TradeDrawer from "@/components/TradeDrawer";
+import IgnoredMessagesDrawer from "@/components/IgnoredMessagesDrawer";
+import { IgnoredMessageItem } from "@/lib/telegram-service";
 
 export default function Home() {
   const { theme, setTheme } = useTheme();
@@ -52,8 +57,14 @@ export default function Home() {
 
   // Results & Filtering
   const [results, setResults] = useState<any[] | null>(null);
+  const [ignoredMessages, setIgnoredMessages] = useState<IgnoredMessageItem[]>([]);
+  const [showIgnoredDrawer, setShowIgnoredDrawer] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"ALL" | "FRAUD" | "WIN" | "LOSS" | "EXPIRED">("ALL");
+  const [filterStatus, setFilterStatus] = useState<"ALL" | "FRAUD" | "WIN" | "MANUAL_WIN" | "LOSS" | "ACTIVE" | "EXPIRED" | "UNSUPPORTED">("ALL");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   // Drawer state
   const [selectedTrade, setSelectedTrade] = useState<any | null>(null);
@@ -121,6 +132,7 @@ export default function Home() {
 
     try {
       let initialSignals: any[] = [];
+      let collectedIgnored: IgnoredMessageItem[] = [];
 
       if (processingMode === "hard" && requestedDays > 15) {
         setProgressMsg("Hard Re-Sync: Ingesting Telegram in batches...");
@@ -162,6 +174,9 @@ export default function Home() {
           if (chunkData.data?.signals) {
             initialSignals.push(...chunkData.data.signals);
           }
+          if (chunkData.data?.ignoredMessages) {
+            collectedIgnored.push(...chunkData.data.ignoredMessages);
+          }
 
           offsetId = chunkData.data?.lastOffsetId || 0;
           hasMore = chunkData.data?.hasMore || false;
@@ -170,6 +185,10 @@ export default function Home() {
         const unique = new Map<number, any>();
         for (const s of initialSignals) unique.set(s.id, s);
         initialSignals = Array.from(unique.values());
+
+        const uniqueIgnored = new Map<number, IgnoredMessageItem>();
+        for (const m of collectedIgnored) uniqueIgnored.set(m.id, m);
+        setIgnoredMessages(Array.from(uniqueIgnored.values()));
       } else {
         setProgressMsg(
           processingMode === "normal"
@@ -203,6 +222,8 @@ export default function Home() {
         }
 
         initialSignals = scrapeData.data || [];
+        setIgnoredMessages(scrapeData.ignoredMessages || []);
+
         if (scrapeData.cachedOldCount !== undefined) {
           setCachedStats({
             cachedOld: scrapeData.cachedOldCount,
@@ -312,10 +333,13 @@ export default function Home() {
 
   const totalCount = results ? results.length : 0;
   const trueWins = results ? results.filter((t) => t.actualResult === "WIN").length : 0;
+  const manualWins = results ? results.filter((t) => t.actualResult === "MANUAL_WIN").length : 0;
   const trueLosses = results ? results.filter((t) => t.actualResult === "LOSS").length : 0;
   const fraudCount = results ? results.filter((t) => t.fraudDetected).length : 0;
+  const activeCount = results ? results.filter((t) => t.actualResult === "ACTIVE").length : 0;
+  const unsupportedCount = results ? results.filter((t) => t.actualResult === "UNSUPPORTED_DATA" || !t.instr).length : 0;
   const winRate =
-    totalCount > 0 ? ((trueWins / (trueWins + trueLosses || 1)) * 100).toFixed(1) : "0";
+    totalCount > 0 ? (((trueWins + manualWins) / (trueWins + manualWins + trueLosses || 1)) * 100).toFixed(1) : "0";
 
   const filteredResults = (results || []).filter((trade) => {
     if (searchQuery) {
@@ -325,12 +349,30 @@ export default function Home() {
       const matchId = String(trade.id).includes(q);
       if (!matchAsset && !matchMsg && !matchId) return false;
     }
+    if (fromDate) {
+      if (new Date(trade.signalTime) < new Date(fromDate)) return false;
+    }
+    if (toDate) {
+      const nextDay = new Date(toDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      if (new Date(trade.signalTime) >= nextDay) return false;
+    }
+
     if (filterStatus === "FRAUD") return trade.fraudDetected;
     if (filterStatus === "WIN") return trade.actualResult === "WIN";
+    if (filterStatus === "MANUAL_WIN") return trade.actualResult === "MANUAL_WIN";
     if (filterStatus === "LOSS") return trade.actualResult === "LOSS";
+    if (filterStatus === "ACTIVE") return trade.actualResult === "ACTIVE";
     if (filterStatus === "EXPIRED") return trade.actualResult === "EXPIRED";
+    if (filterStatus === "UNSUPPORTED") return trade.actualResult === "UNSUPPORTED_DATA" || !trade.instr;
     return true;
   });
+
+  const totalPages = Math.ceil(filteredResults.length / rowsPerPage);
+  const paginatedResults = filteredResults.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   if (!mounted) return null;
   return (
@@ -339,20 +381,23 @@ export default function Home() {
         {/* Top Navigation Bar */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Zap className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight text-white">
-                  Telegram Truth Engine
+                <span className="font-extrabold text-xl tracking-tight text-white flex items-center gap-1">
+                  <span>Signal</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300">
+                    Proof
+                  </span>
                 </span>
-                <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  v2.0 Caching Engine
+                <span className="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  v2.0 Forensic Edition
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                PostgreSQL Cache-Backed Signal Ingestion & Dukascopy 1-Minute Tick Verification
+                Institutional Telegram Signal Verification & 1-Minute Tick Backtesting
               </p>
             </div>
           </div>
@@ -514,6 +559,24 @@ export default function Home() {
                   <Database className="w-3 h-3" /> {cachedStats.cachedOld} Historical Signals Loaded from DB Cache
                 </span>
               )}
+              {ignoredMessages.length > 0 && (
+                <button
+                  onClick={() => setShowIgnoredDrawer(true)}
+                  className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-xl flex items-center gap-1.5 transition-all text-xs font-semibold cursor-pointer shadow-sm"
+                >
+                  <AlertCircle className="w-3.5 h-3.5" /> {ignoredMessages.length} Ignored Messages
+                </button>
+              )}
+            </div>
+          )}
+          {!cachedStats && !loading && ignoredMessages.length > 0 && (
+            <div className="flex items-center gap-3 text-xs">
+              <button
+                onClick={() => setShowIgnoredDrawer(true)}
+                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-xl flex items-center gap-1.5 transition-all text-xs font-semibold cursor-pointer shadow-sm"
+              >
+                <AlertCircle className="w-3.5 h-3.5" /> View {ignoredMessages.length} Ignored Messages
+              </button>
             </div>
           )}
         </div>
@@ -576,6 +639,23 @@ export default function Home() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                  <span className="text-xs font-medium text-slate-400 ml-2">From:</span>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="bg-transparent border-none text-xs text-slate-200 focus:outline-none focus:ring-0 cursor-pointer"
+                  />
+                  <span className="text-xs font-medium text-slate-400">To:</span>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="bg-transparent border-none text-xs text-slate-200 focus:outline-none focus:ring-0 cursor-pointer"
+                  />
+                </div>
+                
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
@@ -617,6 +697,16 @@ export default function Home() {
                     Wins ({trueWins})
                   </button>
                   <button
+                    onClick={() => setFilterStatus("MANUAL_WIN")}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      filterStatus === "MANUAL_WIN"
+                        ? "bg-teal-500/20 text-teal-400 border border-teal-500/30"
+                        : "text-slate-400 hover:text-teal-400"
+                    }`}
+                  >
+                    Manual Wins ({manualWins})
+                  </button>
+                  <button
                     onClick={() => setFilterStatus("LOSS")}
                     className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
                       filterStatus === "LOSS"
@@ -626,6 +716,30 @@ export default function Home() {
                   >
                     Losses ({trueLosses})
                   </button>
+                  {activeCount > 0 && (
+                    <button
+                      onClick={() => setFilterStatus("ACTIVE")}
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                        filterStatus === "ACTIVE"
+                          ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                          : "text-slate-400 hover:text-cyan-400"
+                      }`}
+                    >
+                      Active ({activeCount})
+                    </button>
+                  )}
+                  {unsupportedCount > 0 && (
+                    <button
+                      onClick={() => setFilterStatus("UNSUPPORTED")}
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                        filterStatus === "UNSUPPORTED"
+                          ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                          : "text-slate-400 hover:text-purple-400"
+                      }`}
+                    >
+                      Unsupported ({unsupportedCount})
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -634,6 +748,7 @@ export default function Home() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
+                    <th className="py-3.5 px-4 font-semibold w-12">S.No</th>
                     <th className="py-3.5 px-4 font-semibold">Signal / Date</th>
                     <th className="py-3.5 px-4 font-semibold">Instrument & Action</th>
                     <th className="py-3.5 px-4 font-semibold">Claimed Entry</th>
@@ -644,19 +759,22 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-xs">
-                  {filteredResults.length === 0 ? (
+                  {paginatedResults.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
+                      <td colSpan={8} className="py-8 text-center text-slate-500">
                         No signals matching the selected criteria.
                       </td>
                     </tr>
                   ) : (
-                    filteredResults.map((trade, i) => (
+                    paginatedResults.map((trade, i) => (
                       <tr
                         key={trade.id || i}
                         onClick={() => setSelectedTrade(trade)}
                         className="hover:bg-slate-800/40 cursor-pointer transition-colors group"
                       >
+                        <td className="py-3.5 px-4 font-mono text-slate-400">
+                          {(currentPage - 1) * rowsPerPage + i + 1}
+                        </td>
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-slate-100 group-hover:text-indigo-400 transition-colors">
                             #{trade.id}
@@ -702,14 +820,20 @@ export default function Home() {
                               className={`font-bold px-2.5 py-1 rounded-xl border ${
                                 trade.actualResult === "WIN"
                                   ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                  : trade.actualResult === "MANUAL_WIN"
+                                  ? "bg-teal-500/10 text-teal-400 border-teal-500/30"
                                   : trade.actualResult === "LOSS"
                                   ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                                  : trade.actualResult === "ACTIVE"
+                                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
                                   : trade.actualResult === "DATA_GAP"
                                   ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                  : trade.actualResult === "UNSUPPORTED_DATA"
+                                  ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
                                   : "bg-slate-800 text-slate-400 border-slate-700"
                               }`}
                             >
-                              {trade.actualResult}
+                              {trade.actualResult === "MANUAL_WIN" ? "MANUAL WIN" : trade.actualResult}
                             </span>
                           )}
                         </td>
@@ -735,9 +859,9 @@ export default function Home() {
                             <span className="inline-flex items-center gap-1 bg-red-500/20 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full font-bold">
                               <AlertTriangle className="w-3 h-3" /> FAKED WIN
                             </span>
-                          ) : trade.actualResult === "WIN" && trade.providerClaimMsg ? (
+                          ) : (trade.actualResult === "WIN" || trade.actualResult === "MANUAL_WIN") && trade.providerClaimMsg ? (
                             <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
-                              <ShieldCheck className="w-3.5 h-3.5" /> Honest
+                              <ShieldCheck className="w-3.5 h-3.5" /> {trade.actualResult === "MANUAL_WIN" ? "Honest (Manual)" : "Honest"}
                             </span>
                           ) : (
                             <span className="text-slate-600">-</span>
@@ -753,6 +877,48 @@ export default function Home() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Rows per page:</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={150}>150</option>
+                </select>
+                <span className="text-slate-500 ml-2">
+                  Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredResults.length)} of {filteredResults.length} entries
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 disabled:opacity-50 hover:bg-slate-800 disabled:hover:bg-slate-950 transition-colors"
+                >
+                  Previous
+                </button>
+                <div className="text-slate-300 font-medium px-2">
+                  Page {currentPage} of {Math.max(totalPages, 1)}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 disabled:opacity-50 hover:bg-slate-800 disabled:hover:bg-slate-950 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -887,6 +1053,13 @@ export default function Home() {
 
       {/* Slide-out Trade Details Drawer */}
       <TradeDrawer trade={selectedTrade} onClose={() => setSelectedTrade(null)} />
+
+      {/* Slide-out Ignored Messages Drawer */}
+      <IgnoredMessagesDrawer
+        isOpen={showIgnoredDrawer}
+        onClose={() => setShowIgnoredDrawer(false)}
+        ignoredMessages={ignoredMessages}
+      />
     </div>
   );
 }

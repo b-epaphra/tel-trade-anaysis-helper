@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Telegram Signal Truth Engine",
-  description: "Automated fraud detection, cache-backed signal ingestion, and tick backtesting for Telegram signals",
+  title: "SignalProof — Forensic Signal Verification & Fraud Detection",
+  description:
+    "Institutional-grade audit engine for Telegram trading channels. Replay signals against real Dukascopy 1-minute tick data to uncover true win rates and expose fraudulent claims.",
 };
 
 export default function RootLayout({

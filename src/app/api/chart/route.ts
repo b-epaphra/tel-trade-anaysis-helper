@@ -20,16 +20,16 @@ export async function POST(req: Request) {
     const signalDate = new Date(signalTime);
     let selectedTimeframe = Timeframe.m1;
     let preBufferMs = 30 * 60 * 1000; // 30 minutes before signal for chart context
-    let postDurationMs = 24 * 60 * 60 * 1000; // 24 hours after
+    let postDurationMs = 5 * 24 * 60 * 60 * 1000; // 5 days after
 
     if (timeframe === "m5") {
       selectedTimeframe = Timeframe.m5;
       preBufferMs = 2 * 60 * 60 * 1000;
-      postDurationMs = 48 * 60 * 60 * 1000;
+      postDurationMs = 5 * 24 * 60 * 60 * 1000;
     } else if (timeframe === "m15") {
       selectedTimeframe = Timeframe.m15;
       preBufferMs = 4 * 60 * 60 * 1000;
-      postDurationMs = 72 * 60 * 60 * 1000;
+      postDurationMs = 6 * 24 * 60 * 60 * 1000;
     } else if (timeframe === "h1") {
       selectedTimeframe = Timeframe.h1;
       preBufferMs = 24 * 60 * 60 * 1000;

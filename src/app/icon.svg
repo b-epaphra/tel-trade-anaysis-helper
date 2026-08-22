@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="32" height="32" rx="8" fill="url(#bgGrad)"/>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="7.5" stroke="url(#shieldGrad)" stroke-opacity="0.3"/>
+
+  <!-- Shield Shape -->
+  <path d="M16 4.5 L24 8 C24 18 16 25 16 27 C16 25 8 18 8 8 Z" 
+        fill="#1E293B" 
+        stroke="url(#shieldGrad)" 
+        stroke-width="1.5" 
+        stroke-linejoin="round"/>
+
+  <!-- Verification Checkmark / Trendline -->
+  <path d="M11.5 15.5 L14.5 18.5 L21 11" 
+        stroke="#10B981" 
+        stroke-width="2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+</svg>

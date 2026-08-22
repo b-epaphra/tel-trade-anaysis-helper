@@ -36,6 +36,7 @@ export default function TradeDrawer({
   if (!trade) return null;
 
   const isWin = trade.actualResult === "WIN";
+  const isManualWin = trade.actualResult === "MANUAL_WIN";
   const isLoss = trade.actualResult === "LOSS";
   const isExpired = trade.actualResult === "EXPIRED";
 
@@ -73,9 +74,21 @@ export default function TradeDrawer({
               <span className="inline-flex items-center gap-1.5 bg-red-500/10 text-red-400 border border-red-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                 <AlertTriangle className="w-3.5 h-3.5" /> FRAUD DETECTED
               </span>
+            ) : trade.actualResult === "UNSUPPORTED_DATA" ? (
+              <span className="inline-flex items-center gap-1.5 bg-purple-500/10 text-purple-400 border border-purple-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                <HelpCircle className="w-3.5 h-3.5" /> UNSUPPORTED ASSET
+              </span>
+            ) : trade.actualResult === "ACTIVE" ? (
+              <span className="inline-flex items-center gap-1.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                <Clock className="w-3.5 h-3.5" /> ACTIVE (OPEN)
+              </span>
             ) : isWin ? (
               <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                 <CheckCircle className="w-3.5 h-3.5" /> VERIFIED WIN
+              </span>
+            ) : isManualWin ? (
+              <span className="inline-flex items-center gap-1.5 bg-teal-500/10 text-teal-400 border border-teal-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                <CheckCircle className="w-3.5 h-3.5" /> VERIFIED MANUAL WIN
               </span>
             ) : isLoss ? (
               <span className="inline-flex items-center gap-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
@@ -83,7 +96,7 @@ export default function TradeDrawer({
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                <Clock className="w-3.5 h-3.5" /> EXPIRED / PENDING
+                <Clock className="w-3.5 h-3.5" /> EXPIRED (NO TARGET HIT)
               </span>
             )}
           </div>
@@ -217,11 +230,17 @@ export default function TradeDrawer({
                 </div>
                 <div>
                   <div className="font-semibold text-slate-200 flex items-center gap-2">
-                    <span>Path & Priority Simulation (24h Window)</span>
+                    <span>Path & Priority Simulation (5-Day Window)</span>
                     <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
-                      isWin ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : isLoss ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-slate-400"
+                      isWin
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                        : isManualWin
+                        ? "bg-teal-500/10 text-teal-400 border border-teal-500/30"
+                        : isLoss
+                        ? "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                        : "bg-slate-800 text-slate-400"
                     }`}>
-                      {trade.actualResult || "Pending"}
+                      {trade.actualResult === "MANUAL_WIN" ? "MANUAL WIN" : (trade.actualResult || "Pending")}
                     </span>
                   </div>
                   <p className="text-slate-400 text-[11px] mt-0.5">
@@ -263,7 +282,7 @@ export default function TradeDrawer({
               {/* Step 5 */}
               <div className="relative">
                 <div className={`absolute -left-8 top-0.5 w-5 h-5 rounded-full bg-slate-900 border-2 flex items-center justify-center text-[10px] font-bold ${
-                  trade.fraudDetected ? "border-red-500 text-red-400" : isWin ? "border-emerald-500 text-emerald-400" : "border-slate-600 text-slate-400"
+                  trade.fraudDetected ? "border-red-500 text-red-400" : isWin ? "border-emerald-500 text-emerald-400" : isManualWin ? "border-teal-500 text-teal-400" : "border-slate-600 text-slate-400"
                 }`}>
                   5
                 </div>
@@ -279,6 +298,10 @@ export default function TradeDrawer({
                     ) : isWin && trade.providerClaimMsg ? (
                       <span className="text-emerald-400 font-semibold">
                         ✅ Corroborated: Take profit hit and verified by tick data.
+                      </span>
+                    ) : isManualWin && trade.providerClaimMsg ? (
+                      <span className="text-teal-400 font-semibold">
+                        ✅ Corroborated: Manual profit claim verified by favorable excursion prior to update.
                       </span>
                     ) : isLoss && !trade.providerClaimMsg ? (
                       <span className="text-slate-300">

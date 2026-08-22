@@ -48,6 +48,7 @@ model CachedSignal {
   providerClaimTime  DateTime?
   providerClaimMsg   String?
   instr              String?
+  claimedPips        Float?
   
   entryActual        Float?
   marketValueAtClaim String?

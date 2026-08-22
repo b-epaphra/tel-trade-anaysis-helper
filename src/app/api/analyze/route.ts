@@ -6,6 +6,7 @@ import {
   upsertSignalsToDb,
   getCachedSignalsFromDb,
   ParsedSignalItem,
+  IgnoredMessageItem,
 } from "@/lib/telegram-service";
 
 export async function POST(req: Request) {
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
         if (!batch.hasMore) break;
       }
 
-      const signals = extractSignalsAndClaims(channelId, rawMessages);
+      const { signals, ignoredMessages } = extractSignalsAndClaims(channelId, rawMessages);
       if (signals.length > 0) {
         await upsertSignalsToDb(signals);
       }
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         data: signals,
+        ignoredMessages,
         mode: "hard",
         requiresFurtherChunking: iterations >= MAX_DIRECT_ITERATIONS,
         lastOffsetId: offsetId,
@@ -83,12 +85,17 @@ export async function POST(req: Request) {
       if (!batch.hasMore) break;
     }
 
-    const recentSignals = extractSignalsAndClaims(channelId, recentRawMessages);
+    const { signals: recentSignals, ignoredMessages: recentIgnored } = extractSignalsAndClaims(
+      channelId,
+      recentRawMessages
+    );
+
     if (recentSignals.length > 0) {
       await upsertSignalsToDb(recentSignals);
     }
 
     let allSignals: ParsedSignalItem[] = [...recentSignals];
+    let allIgnored: IgnoredMessageItem[] = [...recentIgnored];
 
     // 2. If user requested > 30 days, load older signals (> 30 days) from Database Cache
     if (requestedDays > 30) {
@@ -118,11 +125,15 @@ export async function POST(req: Request) {
           if (!batch.hasMore) break;
         }
 
-        const olderSignals = extractSignalsAndClaims(channelId, olderRawMessages);
+        const { signals: olderSignals, ignoredMessages: olderIgnored } = extractSignalsAndClaims(
+          channelId,
+          olderRawMessages
+        );
         if (olderSignals.length > 0) {
           await upsertSignalsToDb(olderSignals);
           allSignals.push(...olderSignals);
         }
+        allIgnored.push(...olderIgnored);
       }
     }
 
@@ -138,12 +149,25 @@ export async function POST(req: Request) {
       (a, b) => new Date(b.signalTime).getTime() - new Date(a.signalTime).getTime()
     );
 
+    // Deduplicate ignored messages
+    const uniqueIgnoredMap = new Map<number, IgnoredMessageItem>();
+    for (const item of allIgnored) {
+      if (!uniqueIgnoredMap.has(item.id)) {
+        uniqueIgnoredMap.set(item.id, item);
+      }
+    }
+    const sortedIgnored = Array.from(uniqueIgnoredMap.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
     return NextResponse.json({
       success: true,
       data: sortedSignals,
+      ignoredMessages: sortedIgnored,
       mode: "normal",
       cachedOldCount: requestedDays > 30 ? allSignals.length - recentSignals.length : 0,
       recentCount: recentSignals.length,
+      ignoredCount: sortedIgnored.length,
     });
   } catch (error: any) {
     console.error("Analyze error:", error);

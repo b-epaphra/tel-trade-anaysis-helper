@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="128" fill="#0B0F19"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" stroke="url(#shieldGrad)" stroke-width="2" stroke-opacity="0.3"/>
+
+  <!-- Outer Shield Crest -->
+  <path d="M256 80 L380 130 C380 270 256 380 256 410 C256 380 132 270 132 130 Z" 
+        fill="url(#glowGrad)" 
+        stroke="url(#shieldGrad)" 
+        stroke-width="16" 
+        stroke-linejoin="round"/>
+
+  <!-- Candlestick Bar (Bullish) -->
+  <line x1="210" y1="180" x2="210" y2="300" stroke="#10B981" stroke-width="8" stroke-linecap="round"/>
+  <rect x="198" y="210" width="24" height="60" rx="6" fill="#10B981"/>
+
+  <!-- Candlestick Bar (Cyan) -->
+  <line x1="302" y1="160" x2="302" y2="280" stroke="#38BDF8" stroke-width="8" stroke-linecap="round"/>
+  <rect x="290" y="180" width="24" height="70" rx="6" fill="#38BDF8"/>
+
+  <!-- Dynamic Audit Checkmark -->
+  <path d="M170 260 L235 325 L350 170" 
+        stroke="#FFFFFF" 
+        stroke-width="24" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+</svg>

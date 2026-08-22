@@ -21,18 +21,20 @@ export async function POST(req: Request) {
     });
 
     const prompt = `
-You are a quantitative financial analyst and fraud detection expert.
-I have scraped a Telegram channel and simulated their trading signals against real Dukascopy market data.
+You are the Chief Quantitative Auditor at SignalProof™ — the forensic signal verification authority for financial trading.
+You have ingested a Telegram channel's trading signals and simulated their executions tick-by-tick against Dukascopy 1-minute historical tick data.
 
-Here is the JSON array of their trades:
+Here is the JSON dataset of verified trades:
 ${JSON.stringify(results, null, 2)}
 
-Please write a highly professional, detailed Markdown report analyzing this channel.
-Include:
-1. Executive Summary (Total trades, Real Win Rate vs Claimed Win Rate).
-2. Fraud Analysis (Highlight specific IDs where 'fraudDetected' is true, meaning they claimed a win but the market hit their Stop Loss).
-3. Survivorship Bias (Trades they ignored vs trades they replied to).
-4. Conclusion (Should users trust this provider?).
+Please write a comprehensive, institutional-grade Markdown Forensic Audit Dossier for this channel.
+Structure your report with the following sections:
+# 🛡️ SignalProof™ Channel Audit Dossier
+- **Audit Verdict**: [VERIFIED AUTHENTIC | HIGH RISK / FRAUD DETECTED | UNRELIABLE / INCONCLUSIVE]
+- **Audited Real Win Rate vs Claimed Win Rate**: Compare mathematically.
+- **Forensic Discrepancy & Fraud Analysis**: Call out specific trade IDs where 'fraudDetected' is true (phantom wins, moving SLs, post-hoc claims).
+- **Survivorship & Omission Bias**: Highlight signals that hit SL and were ignored vs winning signals that were hyped.
+- **Risk Assessment & Final Recommendation**: Direct, evidence-backed advice for retail traders.
 `;
 
     const response = await openai.chat.completions.create({
