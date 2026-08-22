@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 /node_modules
 /.pnp
 .pnp.*
@@ -20,11 +20,19 @@
 *.csv
 *.jsonl
 
+# Telegram Sessions & Credentials
+*.session
+*.session-journal
+anon.session
+bot.session
+
 # Environment Variables & Secrets
 .env
 .env*.local
 .env.production
 .env.development
+.env.test
+*.local
 !.env.example
 
 # IDEs, Editors & Assistant configs
@@ -33,6 +41,7 @@
 .windsurf/
 .vscode/
 .idea/
+skills-lock.json
 *.swp
 *.swo
 .DS_Store
@@ -54,3 +63,5 @@ next-env.d.ts
 
 # Prisma Generated
 /src/generated/prisma
+.vercel
+.env*

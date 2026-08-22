@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getHistoricalRates, Timeframe, Format } from "dukascopy-node";
+import os from "os";
+import path from "path";
 import { verifyAdminAuth } from "@/lib/auth";
 import { updateSignalSimulationResultInDb } from "@/lib/telegram-service";
 
@@ -41,6 +43,7 @@ export async function POST(req: Request) {
         timeframe: Timeframe.m1,
         format: Format.json,
         useCache: true,
+        cacheFolderPath: path.join(os.tmpdir(), '.dukascopy-cache'),
       });
 
       if (marketData && marketData.length > 0) {
