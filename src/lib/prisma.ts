@@ -5,12 +5,22 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+function getCleanConnectionString(): string {
+  const candidates = [
+    process.env.POSTGRES_PRISMA_URL,
+    process.env.POSTGRES_URL,
+    process.env.DATABASE_URL,
+  ];
+  for (const c of candidates) {
+    if (c && !c.includes("[SENSITIVE]") && (c.startsWith("postgres://") || c.startsWith("postgresql://"))) {
+      return c;
+    }
+  }
+  return "postgresql://user:pass@localhost:5432/db";
+}
+
 function createPrismaClient() {
-  const connectionString =
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.DATABASE_URL ||
-    "postgresql://user:pass@localhost:5432/db";
+  const connectionString = getCleanConnectionString();
   const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({
     adapter,
