@@ -11,21 +11,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
     }
 
-    const { instrument, signalTime } = await req.json();
+    const { instrument, signalTime, timeframe = "m1" } = await req.json();
 
     if (!instrument || !signalTime) {
       return NextResponse.json({ error: "Missing instrument or signalTime" }, { status: 400 });
     }
 
-    const startTime = new Date(signalTime);
-    // Fetch 24 hours of 1-minute candles
+    const signalDate = new Date(signalTime);
+    let selectedTimeframe = Timeframe.m1;
+    let preBufferMs = 30 * 60 * 1000; // 30 minutes before signal for chart context
+    let postDurationMs = 24 * 60 * 60 * 1000; // 24 hours after
+
+    if (timeframe === "m5") {
+      selectedTimeframe = Timeframe.m5;
+      preBufferMs = 2 * 60 * 60 * 1000;
+      postDurationMs = 48 * 60 * 60 * 1000;
+    } else if (timeframe === "m15") {
+      selectedTimeframe = Timeframe.m15;
+      preBufferMs = 4 * 60 * 60 * 1000;
+      postDurationMs = 72 * 60 * 60 * 1000;
+    } else if (timeframe === "h1") {
+      selectedTimeframe = Timeframe.h1;
+      preBufferMs = 24 * 60 * 60 * 1000;
+      postDurationMs = 7 * 24 * 60 * 60 * 1000;
+    }
+
+    const fromDate = new Date(signalDate.getTime() - preBufferMs);
+    const toDate = new Date(signalDate.getTime() + postDurationMs);
+
     const marketData = await getHistoricalRates({
       instrument: instrument,
       dates: {
-        from: startTime,
-        to: new Date(startTime.getTime() + 24 * 60 * 60 * 1000),
+        from: fromDate,
+        to: toDate,
       },
-      timeframe: Timeframe.m1,
+      timeframe: selectedTimeframe,
       format: Format.json,
       useCache: true,
       cacheFolderPath: path.join(os.tmpdir(), '.dukascopy-cache'),

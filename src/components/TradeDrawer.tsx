@@ -33,61 +33,6 @@ export default function TradeDrawer({
   trade: any;
   onClose: () => void;
 }) {
-  const [chartData, setChartData] = useState<any[] | null>(null);
-  const [isLoadingChart, setIsLoadingChart] = useState(false);
-  const [chartError, setChartError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!trade) return;
-
-    let isMounted = true;
-    const fetchChartData = async () => {
-      setIsLoadingChart(true);
-      setChartError(null);
-      try {
-        const adminPass = localStorage.getItem("signal_verifier_admin_pass") || "";
-        const res = await fetch("/api/chart", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-password": adminPass,
-          },
-          body: JSON.stringify({
-            instrument: trade.instr,
-            signalTime: trade.signalTime,
-          }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch chart data");
-        }
-
-        const data = await res.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        if (isMounted) {
-          setChartData(data.data);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setChartError(err.message);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingChart(false);
-        }
-      }
-    };
-
-    fetchChartData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [trade]);
-  
   if (!trade) return null;
 
   const isWin = trade.actualResult === "WIN";
@@ -202,33 +147,16 @@ export default function TradeDrawer({
           </div>
 
           {/* Section: Interactive Market Tick Chart */}
-          <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 shadow-sm space-y-3">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-slate-200 font-bold text-sm">
                 <BarChart3 className="w-4 h-4 text-indigo-400" />
                 Interactive Market Tick Verification Chart
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">24h Window • 1m Interval</span>
+              <span className="text-[10px] text-slate-400 font-mono">Dukascopy Tick Data • Forensic Canvas</span>
             </div>
             
-            {isLoadingChart ? (
-              <div className="w-full h-80 flex flex-col items-center justify-center border border-slate-800 bg-slate-950 rounded-xl space-y-3">
-                <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                <div className="text-xs text-slate-400 font-medium">Fetching 1,440 Dukascopy Candles...</div>
-              </div>
-            ) : chartError ? (
-              <div className="w-full h-80 flex flex-col items-center justify-center border border-red-500/20 bg-red-500/5 rounded-xl space-y-2 text-red-400 p-6 text-center">
-                <AlertTriangle className="w-6 h-6" />
-                <div className="text-sm font-bold">Chart Data Failed to Load</div>
-                <div className="text-xs opacity-80">{chartError}</div>
-              </div>
-            ) : chartData && chartData.length > 0 ? (
-              <TradeChart data={chartData} trade={trade} />
-            ) : (
-              <div className="w-full h-80 flex items-center justify-center border border-slate-800 bg-slate-950 rounded-xl text-xs text-slate-400 font-medium">
-                No historical market data available for this timeframe.
-              </div>
-            )}
+            <TradeChart trade={trade} />
           </div>
 
           {/* Section: Forensic Audit Working Process / Timeline */}
