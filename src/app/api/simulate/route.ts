@@ -50,53 +50,64 @@ export async function POST(req: Request) {
         const actualEntry = marketData[0].open;
         marketValueActual = actualEntry;
 
-        let highest = -Infinity;
-        let lowest = Infinity;
+        const firstCandleTime = marketData[0].timestamp;
+        const timeDiffMinutes = (firstCandleTime - signalTime.getTime()) / (60 * 1000);
+        const entryClaimed = Number(signal.entryClaimed || signal.entry);
+        const deviation = entryClaimed ? Math.abs(entryClaimed - actualEntry) / actualEntry : 0;
 
-        for (let i = 0; i < marketData.length; i++) {
-          const candle = marketData[i];
-          if (candle.high > highest) highest = candle.high;
-          if (candle.low < lowest) lowest = candle.low;
+        // If the first available tick is more than 60 minutes after signal posted (e.g. datafeed gap / closed market)
+        // or if price gapped heavily (>5% deviation), flag as DATA_GAP to prevent false-positive evaluation
+        if (timeDiffMinutes > 60 || deviation > 0.05) {
+          marketResult = "DATA_GAP";
+        } else {
+          let highest = -Infinity;
+          let lowest = Infinity;
 
-          if (signal.action === "SELL") {
-            if (candle.high >= signal.sl) {
-              marketResult = "LOSS";
-              outcomeTime = new Date(candle.timestamp).toISOString();
-              durationMinutes = i + 1;
-              break;
-            }
-            if (candle.low <= signal.tps[0]) {
-              marketResult = "WIN";
-              outcomeTime = new Date(candle.timestamp).toISOString();
-              durationMinutes = i + 1;
-              break;
-            }
-          } else {
-            if (candle.low <= signal.sl) {
-              marketResult = "LOSS";
-              outcomeTime = new Date(candle.timestamp).toISOString();
-              durationMinutes = i + 1;
-              break;
-            }
-            if (candle.high >= signal.tps[0]) {
-              marketResult = "WIN";
-              outcomeTime = new Date(candle.timestamp).toISOString();
-              durationMinutes = i + 1;
-              break;
+          for (let i = 0; i < marketData.length; i++) {
+            const candle = marketData[i];
+            if (candle.high > highest) highest = candle.high;
+            if (candle.low < lowest) lowest = candle.low;
+
+            if (signal.action === "SELL") {
+              if (candle.high >= signal.sl) {
+                marketResult = "LOSS";
+                outcomeTime = new Date(candle.timestamp).toISOString();
+                durationMinutes = i + 1;
+                break;
+              }
+              if (candle.low <= signal.tps[0]) {
+                marketResult = "WIN";
+                outcomeTime = new Date(candle.timestamp).toISOString();
+                durationMinutes = i + 1;
+                break;
+              }
+            } else {
+              if (candle.low <= signal.sl) {
+                marketResult = "LOSS";
+                outcomeTime = new Date(candle.timestamp).toISOString();
+                durationMinutes = i + 1;
+                break;
+              }
+              if (candle.high >= signal.tps[0]) {
+                marketResult = "WIN";
+                outcomeTime = new Date(candle.timestamp).toISOString();
+                durationMinutes = i + 1;
+                break;
+              }
             }
           }
-        }
 
-        maxPrice = highest === -Infinity ? null : highest;
-        minPrice = lowest === Infinity ? null : lowest;
+          maxPrice = highest === -Infinity ? null : highest;
+          minPrice = lowest === Infinity ? null : lowest;
 
-        if (signal.providerClaimTime) {
-          const claimTimeMs = new Date(signal.providerClaimTime).getTime();
-          const candleAtClaim = marketData.find((c) => Math.abs(c.timestamp - claimTimeMs) < 60000);
-          if (candleAtClaim) marketPriceAtClaim = candleAtClaim.close;
+          if (signal.providerClaimTime) {
+            const claimTimeMs = new Date(signal.providerClaimTime).getTime();
+            const candleAtClaim = marketData.find((c) => Math.abs(c.timestamp - claimTimeMs) < 60000);
+            if (candleAtClaim) marketPriceAtClaim = candleAtClaim.close;
 
-          if (marketResult === "LOSS") {
-            fraudDetected = true;
+            if (marketResult === "LOSS") {
+              fraudDetected = true;
+            }
           }
         }
       }

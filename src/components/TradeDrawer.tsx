@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import {
@@ -135,6 +135,142 @@ export default function TradeDrawer({
               <div>
                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Take Profit (TP1)</div>
                 <div className="text-lg font-bold text-emerald-400 mt-0.5">{trade.tps?.[0] || "N/A"}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Forensic Audit Working Process / Timeline */}
+          <div className="bg-slate-950/80 p-5 rounded-2xl border border-indigo-500/30 space-y-4 shadow-lg">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
+                <BarChart3 className="w-4 h-4 text-indigo-400" />
+                Audit Working Process & Decision Flow
+              </div>
+              <span className="text-[10px] font-mono uppercase bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                Tick-by-Tick Audit Trail
+              </span>
+            </div>
+
+            <div className="space-y-4 text-xs relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800 pl-8">
+              {/* Step 1 */}
+              <div className="relative">
+                <div className="absolute -left-8 top-0.5 w-5 h-5 rounded-full bg-slate-900 border-2 border-indigo-500 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                  1
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-200 flex items-center gap-2">
+                    <span>Signal Ingestion & Parameter Extraction</span>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded font-mono">Parsed</span>
+                  </div>
+                  <p className="text-slate-400 text-[11px] mt-0.5">
+                    Extracted <strong className="text-slate-300">{trade.asset} {trade.action}</strong> @ <strong className="text-slate-300">{trade.entryClaimed}</strong> (SL: {trade.sl}, TP1: {trade.tps?.[0]}) from Telegram message.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="relative">
+                <div className="absolute -left-8 top-0.5 w-5 h-5 rounded-full bg-slate-900 border-2 border-indigo-500 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                  2
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-200 flex items-center gap-2">
+                    <span>1-Minute Tick Ingestion & Slippage Check</span>
+                    {entryDifference !== null ? (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                        Math.abs(Number(entryDifference)) > 0 ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"
+                      }`}>
+                        Slippage: {entryDifference}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-slate-400 text-[11px] mt-0.5">
+                    Pulled Dukascopy 1-min rate for <strong className="text-slate-300">{trade.instr}</strong>. Real market entry open tick was <strong className="text-slate-200 font-mono">{trade.entryActual ?? "N/A"}</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="relative">
+                <div className="absolute -left-8 top-0.5 w-5 h-5 rounded-full bg-slate-900 border-2 border-indigo-500 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                  3
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-200 flex items-center gap-2">
+                    <span>Path & Priority Simulation (24h Window)</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                      isWin ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : isLoss ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-slate-400"
+                    }`}>
+                      {trade.actualResult || "Pending"}
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-[11px] mt-0.5">
+                    {trade.action === "SELL" ? (
+                      <>Condition: If High &ge; {trade.sl} &rarr; LOSS, If Low &le; {trade.tps?.[0]} &rarr; WIN.</>
+                    ) : (
+                      <>Condition: If Low &le; {trade.sl} &rarr; LOSS, If High &ge; {trade.tps?.[0]} &rarr; WIN.</>
+                    )}
+                    {trade.durationMinutes && (
+                      <span className="block text-slate-300 mt-0.5">
+                        &bull; Breached target at minute <strong className="text-indigo-400 font-mono">{trade.durationMinutes}</strong> ({trade.outcomeTime ? new Date(trade.outcomeTime).toLocaleTimeString() : ""}).
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="relative">
+                <div className="absolute -left-8 top-0.5 w-5 h-5 rounded-full bg-slate-900 border-2 border-indigo-500 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                  4
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-200 flex items-center gap-2">
+                    <span>Telegram Channel Claim Cross-Examination</span>
+                  </div>
+                  <p className="text-slate-400 text-[11px] mt-0.5">
+                    {trade.providerClaimMsg ? (
+                      <span>
+                        Provider claimed: <strong className="text-purple-300">"{trade.providerClaimMsg}"</strong> at {trade.providerClaimTime ? new Date(trade.providerClaimTime).toLocaleTimeString() : ""}.
+                      </span>
+                    ) : (
+                      <span>No winner/profit update was posted by the provider in the channel.</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 5 */}
+              <div className="relative">
+                <div className={`absolute -left-8 top-0.5 w-5 h-5 rounded-full bg-slate-900 border-2 flex items-center justify-center text-[10px] font-bold ${
+                  trade.fraudDetected ? "border-red-500 text-red-400" : isWin ? "border-emerald-500 text-emerald-400" : "border-slate-600 text-slate-400"
+                }`}>
+                  5
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-200 flex items-center gap-2">
+                    <span>Forensic Integrity Verdict</span>
+                  </div>
+                  <p className="text-slate-400 text-[11px] mt-0.5">
+                    {trade.fraudDetected ? (
+                      <span className="text-red-400 font-semibold">
+                        🚨 Deception: Stop loss triggered before provider's win announcement.
+                      </span>
+                    ) : isWin && trade.providerClaimMsg ? (
+                      <span className="text-emerald-400 font-semibold">
+                        ✅ Corroborated: Take profit hit and verified by tick data.
+                      </span>
+                    ) : isLoss && !trade.providerClaimMsg ? (
+                      <span className="text-slate-300">
+                        ⚪ Silent Loss: Stop loss hit; provider omitted reporting the loss.
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">
+                        Evaluated with standard integrity checks.
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
