@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Channel {
+  id           String          @id
+  title        String?
+  lastSyncedAt DateTime?
+  messages     CachedMessage[]
+  signals      CachedSignal[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model CachedMessage {
+  id           String   @id @default(cuid())
+  channelId    String
+  messageId    Int
+  date         DateTime
+  text         String?
+  replyToMsgId Int?
+  isReply      Boolean  @default(false)
+  
+  channel      Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([channelId, messageId])
+  @@index([channelId, date])
+}
+
+model CachedSignal {
+  id                 String    @id @default(cuid())
+  channelId          String
+  messageId          Int
+  signalTime         DateTime
+  asset              String
+  action             String
+  entryClaimed       Float
+  sl                 Float
+  tps                Float[]
+  msg                String
+  providerClaimTime  DateTime?
+  providerClaimMsg   String?
+  instr              String?
+  
+  entryActual        Float?
+  marketValueAtClaim String?
+  actualResult       String?
+  outcomeTime        DateTime?
+  durationMinutes    Int?
+  maxPrice           Float?
+  minPrice           Float?
+  fraudDetected      Boolean   @default(false)
+  simulatedAt        DateTime?
+
+  channel            Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([channelId, messageId])
+  @@index([channelId, signalTime])
+}
+
+model SyncState {
+  id             String    @id @default(cuid())
+  channelId      String    @unique
+  oldestDate     DateTime?
+  newestDate     DateTime?
+  lastFullSyncAt DateTime?
+  updatedAt      DateTime  @updatedAt
+}
