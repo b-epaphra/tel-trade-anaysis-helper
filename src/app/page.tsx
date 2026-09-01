@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ReactMarkdown from "react-markdown";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useTheme } from "next-themes";
 import {
   Play,
@@ -31,9 +31,11 @@ import {
   Copy,
   Info,
   Eye,
+  Bot,
 } from "lucide-react";
 import TradeDrawer from "@/components/TradeDrawer";
 import IgnoredMessagesDrawer from "@/components/IgnoredMessagesDrawer";
+import AgentChatDrawer from "@/components/AgentChatDrawer";
 import { IgnoredMessageItem } from "@/lib/telegram-service";
 
 export default function Home() {
@@ -43,6 +45,7 @@ export default function Home() {
   // Auth & Settings
   const [adminPassword, setAdminPassword] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAgentDrawer, setShowAgentDrawer] = useState(false);
 
   // Core Search & Ingestion Parameters
   const [channelId, setChannelId] = useState("-1001297305044");
@@ -142,10 +145,10 @@ export default function Home() {
         const nowTs = Math.floor(Date.now() / 1000);
         const cutoffTs = nowTs - requestedDays * 86400;
 
-        while (hasMore && chunkCount < 15) {
+        while (hasMore && chunkCount < 200) {
           chunkCount++;
           setProgressMsg(`Fetching Telegram Chunk #${chunkCount} (offset ${offsetId})...`);
-          setProgressPercent(Math.min(30, chunkCount * 5));
+          setProgressPercent(Math.min(50, chunkCount * 2));
 
           const chunkRes = await fetch("/api/sync/chunk", {
             method: "POST",
@@ -403,6 +406,15 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            <button
+              onClick={() => setShowAgentDrawer(true)}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white shadow-lg shadow-indigo-600/25 transition-all active:scale-95 border border-indigo-400/30"
+            >
+              <Bot className="w-4 h-4" />
+              <span>AI Forensic Agent</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </button>
+
             <button
               onClick={() => setShowAuthModal(true)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
@@ -992,8 +1004,14 @@ export default function Home() {
                     {reportCopied ? "Copied!" : "Copy Report Markdown"}
                   </button>
                 </div>
-                <div className="prose prose-invert prose-indigo max-w-none text-xs leading-relaxed">
-                  <ReactMarkdown>{report}</ReactMarkdown>
+                <div className="pt-2">
+                  <MarkdownRenderer
+                    content={report}
+                    onSelectTrade={(id) => {
+                      const target = results?.find((r) => r.id === id || r.messageId === id);
+                      if (target) setSelectedTrade(target);
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -1059,6 +1077,20 @@ export default function Home() {
         isOpen={showIgnoredDrawer}
         onClose={() => setShowIgnoredDrawer(false)}
         ignoredMessages={ignoredMessages}
+      />
+
+      {/* AI Quantitative Forensic Agent Drawer (Pi Harness + LiteLLM DeepSeek-V4-Flash) */}
+      <AgentChatDrawer
+        isOpen={showAgentDrawer}
+        onClose={() => setShowAgentDrawer(false)}
+        channelId={channelId}
+        adminPassword={adminPassword}
+        onSelectTrade={(id) => {
+          const target = results?.find((r) => r.id === id || r.messageId === id);
+          if (target) {
+            setSelectedTrade(target);
+          }
+        }}
       />
     </div>
   );

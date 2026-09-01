@@ -146,7 +146,16 @@ export interface ExtractionResult {
   ignoredMessages: IgnoredMessageItem[];
 }
 
-export function getTelegramClient() {
+let globalClient: TelegramClient | null = null;
+
+export async function getConnectedTelegramClient() {
+  if (globalClient) {
+    if (!globalClient.connected) {
+      await globalClient.connect();
+    }
+    return globalClient;
+  }
+
   const API_ID = parseInt(process.env.TELEGRAM_API_ID || "0", 10);
   const API_HASH = process.env.TELEGRAM_API_HASH || "";
   const SESSION_STRING = process.env.TELEGRAM_SESSION || "";
@@ -156,9 +165,14 @@ export function getTelegramClient() {
   }
 
   const stringSession = new StringSession(SESSION_STRING);
-  return new TelegramClient(stringSession, API_ID, API_HASH, {
+  const client = new TelegramClient(stringSession, API_ID, API_HASH, {
     connectionRetries: 5,
+    useWSS: false,
   });
+
+  await client.connect();
+  globalClient = client;
+  return client;
 }
 
 /**
@@ -347,8 +361,7 @@ export async function fetchTelegramBatch(
     cutoffTimestamp?: number;
   }
 ) {
-  const client = getTelegramClient();
-  await client.connect();
+  const client = await getConnectedTelegramClient();
 
   try {
     const entity = await client.getEntity(channelId);
@@ -386,8 +399,9 @@ export async function fetchTelegramBatch(
       lastOffsetId: newOffsetId,
       hasMore: !stop && messages.length >= limit,
     };
-  } finally {
-    await client.disconnect();
+  } catch (err) {
+    console.error("fetchTelegramBatch error:", err);
+    throw err;
   }
 }
 
