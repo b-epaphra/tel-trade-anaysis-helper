@@ -17,9 +17,9 @@ export interface AgentRunOptions {
  * Uses LiteLLM proxy (DeepSeek-V4-Flash) by default, stripped of generic coding tools/prompts.
  */
 export function createSignalProofAgent(options: AgentRunOptions = {}) {
-  const apiKey = options.customApiKey || process.env.LITELLM_API_KEY || "sk-0DFMWnbmyvO3WaotuvN3TA";
-  const baseUrl = options.customBaseUrl || process.env.LITELLM_BASE_URL || "https://litellm-database-production-369d.up.railway.app/v1";
-  const modelId = options.modelId || process.env.LITELLM_MODEL || "DeepSeek-V4-Flash";
+  const apiKey = options.customApiKey || process.env.LITELLM_API_KEY || "hth";
+  const baseUrl = options.customBaseUrl || process.env.LITELLM_BASE_URL || "jng";
+  const modelId = options.modelId || process.env.LITELLM_MODEL || "hnjjj";
   const thinkingLevel: ThinkingLevel = options.thinkingLevel || "off";
 
   const isReasoningEnabled = thinkingLevel !== "off";
